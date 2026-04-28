@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>整蛊小玩意</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#ff3860}
+    html,body{height:100%;margin:0;font-family:system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    body{display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#071124, #0b2540);color:#e6eef8}
+    .card{width:920px;max-width:95%;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:12px;padding:28px;box-shadow:0 8px 30px rgba(2,6,23,0.6);position:relative}
+    h1{margin:0 0 8px;font-size:1.6rem}
+    p{margin:0 0 18px;color:#bcd3ee}
+    .controls{display:flex;gap:10px}
+    button{background:var(--accent);border:0;padding:10px 14px;border-radius:8px;color:white;font-weight:600;cursor:pointer}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06)}
+    #screen{margin-top:18px;height:360px;border-radius:10px;overflow:hidden;background:#000;position:relative}
+    #fakeDialog{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:16px}
+    .big{font-size:2.2rem;font-weight:700;color:#ffdcdc;text-shadow:0 6px 30px rgba(255,0,80,0.08)}
+    .small{color:#ffd;opacity:0.9}
+    #stopBtn{position:absolute;right:12px;top:12px;display:none}
+    canvas{display:block}
+    .hint{font-size:0.9rem;color:#9fb4da;margin-top:10px}
+    @keyframes shake{0%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}100%{transform:translateX(0)}}
+    .shaking{animation:shake .6s ease-in-out}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>整蛊小工具 — 轻松一秒捉弄朋友</h1>
+    <p>点击“开始整蛊”，页面会模拟一个夸张的“惊喜效果”。页面内设有“停止整蛊”按钮可以随时停止并恢复正常。</p>
+    <div class="controls">
+      <button id="start">开始整蛊</button>
+      <button id="preview" class="ghost">预览效果</button>
+      <button id="download" class="ghost">保存为 HTML</button>
+    </div>
+    <div id="screen">
+      <div id="fakeDialog">
+        <div class="big">安静一下…</div>
+        <div class="small">准备好被整蛊了吗？按“开始整蛊”即可。</div>
+      </div>
+      <button id="stopBtn">停止整蛊</button>
+      <canvas id="confetti"></canvas>
+    </div>
+    <div class="hint">提示：在朋友面前演示时，先把音量调小以免惊到他人。</div>
+  </div>
+
+  <script>
+    const start = document.getElementById('start')
+    const preview = document.getElementById('preview')
+    const download = document.getElementById('download')
+    const stopBtn = document.getElementById('stopBtn')
+    const screen = document.getElementById('screen')
+    const fakeDialog = document.getElementById('fakeDialog')
+    const canvas = document.getElementById('confetti')
+    let anim=null, particles=[], running=false
+
+    // 画布大小
+    function resize(){canvas.width=screen.clientWidth;canvas.height=screen.clientHeight}
+    addEventListener('resize',resize)
+    resize()
+
+    function rand(min,max){return Math.random()*(max-min)+min}
+
+    function createParticles(){
+      particles = []
+      for(let i=0;i<180;i++){
+        particles.push({x:rand(0,canvas.width), y:rand(-canvas.height,0), vx:rand(-2,2), vy:rand(1,6), size:rand(4,10), color:`hsl(${Math.floor(rand(0,360))} 90% 60%)`, rot:rand(0,360)})
+      }
+    }
+
+    function draw(){
+      const ctx = canvas.getContext('2d')
+      ctx.clearRect(0,0,canvas.width,canvas.height)
+      for(let p of particles){
+        p.x += p.vx; p.y += p.vy; p.vy += 0.06
+        ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot* Math.PI/180)
+        ctx.fillStyle = p.color; ctx.fillRect(-p.size/2,-p.size/2,p.size,p.size)
+        ctx.restore()
+        if(p.y>canvas.height+20){p.y = rand(-200,-20); p.x = rand(0,canvas.width); p.vy = rand(1,4)}
+      }
+      anim = requestAnimationFrame(draw)
+    }
+
+    function startPrank(){
+      if(running) return
+      running=true
+      // 隐藏初始对话
+      fakeDialog.style.display='none'
+      stopBtn.style.display='inline-block'
+      screen.classList.add('shaking')
+
+      // 伪装加载进度
+      const overlay = document.createElement('div')
+      overlay.style.position='absolute'
+      overlay.style.inset='0'
+      overlay.style.display='flex'
+      overlay.style.alignItems='center'
+      overlay.style.justifyContent='center'
+      overlay.style.flexDirection='column'
+      overlay.style.background='linear-gradient(90deg, rgba(0,0,0,0.4), rgba(255,20,80,0.06))'
+      overlay.innerHTML = `<div style="color:#fff;font-size:1.4rem;margin-bottom:12px">正在安装重要更新……</div><div id=bar style="width:70%;height:14px;background:rgba(255,255,255,0.08);border-radius:8px;overflow:hidden"><div id=p style="width:0;height:100%;background:linear-gradient(90deg,#ffb4c4,#ff3860)"></div></div>`
+      screen.appendChild(overlay)
+      const p = overlay.querySelector('#p')
+      let width = 0
+      const t = setInterval(()=>{
+        width += rand(3,12)
+        if(width>=100){width=100; clearInterval(t); setTimeout(()=>{
+          // 移除进度，开始彩带
+          overlay.remove(); screen.classList.remove('shaking')
+          createParticles(); draw(); // 启动动画
+          playBeep();
+        },600)}
+        p.style.width = width + '%'
+      },120)
+    }
+
+    function stopPrank(){
+      running=false
+      cancelAnimationFrame(anim)
+      particles=[]
+      const ctx = canvas.getContext('2d')
+      ctx.clearRect(0,0,canvas.width,canvas.height)
+      fakeDialog.style.display='flex'
+      stopBtn.style.display='none'
+      screen.classList.remove('shaking')
+      // 轻微提示
+      alert('整蛊已停止，大家和气收场 😄')
+    }
+
+    // 轻微音效（简单 beep）
+    function playBeep(){
+      try{
+        const ctx = new (window.AudioContext || window.webkitAudioContext)()
+        const o = ctx.createOscillator()
+        const g = ctx.createGain()
+        o.type='sine'; o.frequency.value=880
+        o.connect(g); g.connect(ctx.destination)
+        g.gain.value=0.02
+        o.start();
+        setTimeout(()=>{o.frequency.value=440},200)
+        setTimeout(()=>{o.stop(); ctx.close()},900)
+      }catch(e){/* 浏览器限制或无权限 */}
+    }
+
+    start.addEventListener('click', startPrank)
+    stopBtn.addEventListener('click', stopPrank)
+    preview.addEventListener('click', ()=>{ // 简短预览：直接生成少量彩带
+      if(running) return
+      createParticles(); draw(); setTimeout(()=>{cancelAnimationFrame(anim); const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height)},1500)
+    })
+
+    download.addEventListener('click', ()=>{
+      const blob = new Blob([document.documentElement.outerHTML], {type:'text/html;charset=utf-8'})
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = 'prank.html'
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
+    })
+
+    // 防止离开时动画继续占用
+    window.addEventListener('beforeunload', ()=>{cancelAnimationFrame(anim)})
+  </script>
+</body>
+</html>
